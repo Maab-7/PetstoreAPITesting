@@ -1,3 +1,8 @@
-requests
-pytest
-allure-pytest
+pytest==7.4.3
+requests==2.31.0
+httpx==0.25.2
+pydantic==2.5.0
+pytest-html==4.1.1
+pytest-xdist==3.5.0
+pytest-metadata==2.0.4
+allure-pytest==2.13.2

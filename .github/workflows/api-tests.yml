@@ -1,10 +1,12 @@
-name: Petstore API Tests
+name: API Tests - Petstore
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+  schedule:
+    - cron: "0 2 * * *"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -12,6 +14,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     permissions:
       checks: write
@@ -20,56 +23,62 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5.2.0
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Petstore API Tests
-        run: pytest tests/test_pet.py -v --alluredir=allure-results --junitxml=test-results.xml
-        continue-on-error: true
+      - name: Run API Tests
+        run: |
+          pytest tests/ -v \
+            --alluredir=allure-results \
+            --junitxml=test-results.xml \
+            --html=report.html \
+            --self-contained-html \
+            --tb=short
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-report-html
+          path: report.html
+          retention-days: 30
 
       - name: Upload Allure results
-        uses: actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: allure-results
           path: allure-results/
           retention-days: 30
 
-      - name: Upload JUnit results
-        uses: actions/upload-artifact@v4.4.3
+      - name: Upload JUnit XML
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results
+          name: junit-results
           path: test-results.xml
           retention-days: 30
 
       - name: Publish test results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action@v2.16.1
         if: always()
         with:
           files: test-results.xml
-          check_name: "Petstore API Test Results"
+          check_name: "API Test Results"
+          comment_mode: always
 
-      - name: Generate Allure Report
+      - name: Test Summary
         if: always()
-        uses: simple-elf/allure-report-action@master
-        with:
-          allure_results: allure-results
-          allure_history: allure-history
-          keep_reports: 20
-
-      - name: Deploy report to GitHub Pages
-        if: always()
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: allure-report
+        run: |
+          echo "✅ API Test Suite Completed"
+          echo "📊 Reports available in artifacts"
